@@ -3,11 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/deckarep/gosx-notifier"
+	"github.com/bznein/github_notification/pkg/notification"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -101,10 +102,22 @@ type Response struct {
 
 type ApiResponse []Response
 
+const (
+	NOTIFICATIONS_URL = "https://github.com/notifications"
+)
+
 func main() {
 	closeChan := make(chan bool)
 	go getNotifications(closeChan)
 	<-closeChan
+}
+
+// Max returns the larger of x or y.
+func max(x, y int) int {
+	if x < y {
+		return y
+	}
+	return x
 }
 
 func getNotifications(closeChan chan bool) {
@@ -113,22 +126,38 @@ func getNotifications(closeChan chan bool) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", "https://api.github.com", nil)
-	// ...
 	req.Header.Add("Authorization", "token "+token)
 	_, err = client.Do(req)
-	// ...
 	if err != nil {
 		log.Fatal(err)
 	}
+	pollTime := 60
+	etag := ""
 	req, err = http.NewRequest("GET", "https://api.github.com/notifications", nil)
 	req.Header.Add("Authorization", "token "+token)
 
 	for {
+		req.Header.Set("If-None-Match", etag)
 		response, err := client.Do(req)
 
 		if err != nil {
 			fmt.Print(err.Error())
 			os.Exit(1)
+		}
+
+		etag = response.Header.Get("ETag")
+
+		status := response.StatusCode
+		switch status {
+		case 200:
+			break
+		case 304:
+			timeT, _ := strconv.Atoi(response.Header.Get("X-Poll-Interval"))
+			pollTime = max(pollTime, timeT)
+			time.Sleep(time.Second * time.Duration(pollTime))
+			continue
+		default:
+			fmt.Fprintf(os.Stderr, "Error code not 200 or 304: %d", status)
 		}
 
 		responseData, err := ioutil.ReadAll(response.Body)
@@ -141,11 +170,26 @@ func getNotifications(closeChan chan bool) {
 			log.Fatal(err)
 		}
 		fmt.Println(res)
-		// do stuff
-		note := gosxnotifier.NewNotification("New notification")
-		note.Link = res[0].Url
-		note.Push()
-		time.Sleep(time.Second * 60)
+
+		n := notification.Notification{}
+		n.Title = "aaa"
+		n.Actions = []string{"vv"}
+		fmt.Println(n.Push())
+		// // do stuff
+		// if len(res) > 0 {
+		// 	//	note := gosxnotifier.NewNotification("Github Notifications")
+		// 	for _, notification := range res {
+		// 		//		note.Subtitle = notification.Reason + "\n"
+		// 	}
+		// 	if len(res) == 1 {
+		// 		//		note.Link = res[0].Url
+		// 	} else {
+		// 		//		note.Link = NOTIFICATIONS_URL
+		// 	}
+		// 	//	note.Push()
+		// }
+
+		time.Sleep(time.Second * time.Duration(pollTime))
 	}
 
 }
