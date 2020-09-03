@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/bznein/github_notification/pkg/notification"
+	"github.com/bznein/notipher/pkg/notiphication"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -171,24 +171,15 @@ func getNotifications(closeChan chan bool) {
 		}
 		fmt.Println(res)
 
-		n := notification.Notification{}
-		n.Title = "aaa"
-		n.Actions = []string{"vv"}
-		fmt.Println(n.Push())
-		// // do stuff
-		// if len(res) > 0 {
-		// 	//	note := gosxnotifier.NewNotification("Github Notifications")
-		// 	for _, notification := range res {
-		// 		//		note.Subtitle = notification.Reason + "\n"
-		// 	}
-		// 	if len(res) == 1 {
-		// 		//		note.Link = res[0].Url
-		// 	} else {
-		// 		//		note.Link = NOTIFICATIONS_URL
-		// 	}
-		// 	//	note.Push()
-		// }
-
+		if len(res) > 0 {
+			n := notiphication.Notiphication{}
+			n.Title = res[0].Reason
+			actions := notiphication.Actions{}
+			actions["action1"] = func() { fmt.Println("Clicked action1") }
+			actions["action2"] = func() { fmt.Println("Clicked action2") }
+			n.Actions = actions
+			n.SyncPush()
+		}
 		time.Sleep(time.Second * time.Duration(pollTime))
 	}
 
