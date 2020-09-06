@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/user"
 	"strconv"
 	"time"
 
@@ -38,7 +39,11 @@ func getDefaultNotification() Configuration {
 }
 
 func getConfig() Configuration {
-	jsonFile, err := os.Open("~/.config/github_notifications/config.json")
+	user, err := user.Current()
+	if err != nil {
+		return getDefaultNotification()
+	}
+	jsonFile, err := os.Open(user.HomeDir + "/.config/github_notifications/config.json")
 	if err != nil {
 		return getDefaultNotification()
 	}
@@ -61,6 +66,15 @@ func max(x, y int) int {
 		return y
 	}
 	return x
+}
+
+func contains(container []string, elem string) bool {
+	for _, e := range container {
+		if e == elem {
+			return true
+		}
+	}
+	return false
 }
 
 func getNotifications(closeChan chan bool, config Configuration) {
@@ -118,32 +132,66 @@ func getNotifications(closeChan chan bool, config Configuration) {
 		}
 
 		for _, notification := range res {
-			newReq, err := http.NewRequest("GET", notification.Subject.Url, nil)
-			newReq.Header.Add("Authorization", "token "+config.GithubToken)
-			newResponse, err := client.Do(newReq)
-
-			newIssue, err := ioutil.ReadAll(newResponse.Body)
-			err = json.Unmarshal(newIssue, &issue)
-			if err != nil {
-				log.Fatal(err)
+			if contains(config.IgnoreList, notification.Reason) {
+				continue
 			}
 			n := notiphication.Notiphication{}
+			if notification.Subject.Url != "" {
+				newReq, err := http.NewRequest("GET", notification.Subject.Url, nil)
+				newReq.Header.Add("Authorization", "token "+config.GithubToken)
+				newResponse, err := client.Do(newReq)
+
+				newIssue, err := ioutil.ReadAll(newResponse.Body)
+				err = json.Unmarshal(newIssue, &issue)
+				if err != nil {
+					log.Fatal(err)
+				}
+				n.Link = issue.HtmlUrl
+			}
 			n.AppIcon = "./assets/GitHub-Mark-32px.png"
 			n.Title = notification.Repository.Description
 			n.Subtitle = notification.Subject.Title
-			n.Link = issue.HtmlUrl
-			n.DropdownLabel = "Remind me"
+			n.DropdownLabel = "Options"
 			actions := notiphication.Actions{}
 			n.Actions = actions
 			actions["5 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval1)) }
 			actions["10 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval2)) }
 			actions["15 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval3)) }
+			actions["Ignore this type of notification"] = func() { ignoreNotification(notification.Reason) }
 			n.AsyncPush()
 		}
 
 		time.Sleep(time.Second * time.Duration(pollTime))
 	}
 
+}
+
+func ignoreNotification(reason string) {
+	user, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+	configPath := user.HomeDir + "/.config/github_notifications/config.json"
+	jsonFile, err := os.Open(configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer jsonFile.Close()
+	configFilesBytes, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	config := Configuration{}
+	err = json.Unmarshal(configFilesBytes, &config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	config.IgnoreList = append(config.IgnoreList, reason)
+	editedConfig, err := json.Marshal(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(configPath, editedConfig, 0644)
 }
 
 func resendNotification(n notiphication.Notiphication, sleep time.Duration) {
