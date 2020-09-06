@@ -154,9 +154,9 @@ func getNotifications(closeChan chan bool, config Configuration) {
 			n.DropdownLabel = "Options"
 			actions := notiphication.Actions{}
 			n.Actions = actions
-			actions["5 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval1)) }
-			actions["10 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval2)) }
-			actions["15 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval3)) }
+			actions["Remind in 5 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval1)) }
+			actions["Remind in 10 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval2)) }
+			actions["Remind in 15 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval3)) }
 			actions["Ignore this type of notification"] = func() { ignoreNotification(notification.Reason) }
 			n.AsyncPush()
 		}
