@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-type Owner struct {
+type User struct {
 	Login             string `json:"login"`
 	Id                int    `json:"id"`
 	NodeId            string `json:"node_id"`
@@ -46,7 +46,7 @@ type Repository struct {
 	NodeId           string `json:"node_id"`
 	Name             string `json:"name"`
 	FullName         string `json:"full_name"`
-	Owner            Owner  `json:"owner"`
+	Owner            User   `json:"owner"`
 	Private          bool   `json:"private"`
 	HtmlUrl          string `json:"html_url"`
 	Description      string `json:"description"`
@@ -90,7 +90,7 @@ type Repository struct {
 	TreesUrl         string `json:"trees_url"`
 }
 
-type Response struct {
+type Notification struct {
 	Id         string     `json:"id"`
 	Repository Repository `json:"repository"`
 	Subject    Subject    `json:"subject"`
@@ -101,7 +101,71 @@ type Response struct {
 	Url        string     `json:"url"`
 }
 
-type ApiResponse []Response
+type Label struct {
+	Id          int    `json:"id"`
+	NodeId      string `json:"node_id"`
+	Url         string `json:"url"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Color       string `json:"color"`
+	Default     bool   `json:"default"`
+}
+
+type Milestone struct {
+	Url          string `json:"url"`
+	HtmlUrl      string `json:"html_url"`
+	LabelsUrl    string `json:"labels_url"`
+	Id           int    `json:"id"`
+	NodeId       string `json:"node_id"`
+	Number       int    `json:"number"`
+	State        string `json:"state"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	Creator      User   `json:"creator"`
+	OpenIssues   int    `json:"open_issues"`
+	ClosedIssues int    `json:"closed_issues"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+	ClosedAt     string `json:"closed_at"`
+	DueOn        string `json:"due_on"`
+}
+
+type PullRequest struct {
+	Url      string `json:"url"`
+	HtmlUrl  string `json:"html_url"`
+	PatchUrl string `json:"patch_url"`
+	DiffUrl  string `json:"diff_url"`
+}
+
+type Issue struct {
+	Id               int         `json:"id"`
+	NodeId           string      `json:"node_id"`
+	Url              string      `json:"url"`
+	RepositoryUrl    string      `json:"repository_url"`
+	LabelsUrl        string      `json:"labels_url"`
+	CommentsUrl      string      `json:"comments_url"`
+	EventsUrl        string      `json:"events_url"`
+	HtmlUrl          string      `json:"html_url"`
+	Number           int         `json:"number"`
+	State            string      `json:"state"`
+	Title            string      `json:"title"`
+	Body             string      `json:"body"`
+	User             User        `json:"user"`
+	Labels           []Label     `json:"labels"`
+	Assignee         User        `json:"assignee"`
+	Assignees        []User      `json:"assignees"`
+	Milestone        Milestone   `json:"milestone"`
+	Locked           bool        `json:"locked"`
+	ActiveLockReason string      `json:"active_lock_reason"`
+	Comments         int         `json:"comments"`
+	PullRequest      PullRequest `json:"pull_request"`
+	ClosedAt         string      `json:"closed_at"`
+	CreatedAt        string      `json:"created_at"`
+	UpdatedAt        string      `json:"updated_at"`
+	ClosedBy         User        `json:"closed_by"`
+}
+
+type NotificationResponse []Notification
 
 const (
 	NOTIFICATIONS_URL = "https://github.com/notifications"
@@ -164,19 +228,28 @@ func getNotifications(closeChan chan bool) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		res := ApiResponse{}
+		res := NotificationResponse{}
 		err = json.Unmarshal(responseData, &res)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		pretty.Println(res[0])
+		newReq, err := http.NewRequest("GET", res[0].Subject.Url, nil)
+		newReq.Header.Add("Authorization", "token "+token)
+		newResponse, err := client.Do(newReq)
+		issue := Issue{}
+
+		newIssue, err := ioutil.ReadAll(newResponse.Body)
+		err = json.Unmarshal(newIssue, &issue)
+		if err != nil {
+			log.Fatal(err)
+		}
 		if len(res) > 0 {
 			n := notiphication.Notiphication{}
 			n.AppIcon = "./assets/GitHub-Mark-32px.png"
 			n.Title = res[0].Repository.Description
 			n.Subtitle = res[0].Subject.Title
-			n.Link = res[0].Subject.Url
+			n.Link = issue.HtmlUrl
 			n.DropdownLabel = "Remind me"
 			actions := notiphication.Actions{}
 			actions["5 Minutes"] = func() { fmt.Println("Clicked action1") }
