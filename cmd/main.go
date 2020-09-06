@@ -14,10 +14,45 @@ import (
 	"github.com/bznein/notipher/pkg/notiphication"
 )
 
+type Configuration struct {
+	GithubToken    string   `json:"github_token"`
+	RetryInterval1 int      `json:"retry_interval_1"`
+	RetryInterval2 int      `json:"retry_interval_2"`
+	RetryInterval3 int      `json:"retry_interval_3"`
+	IgnoreList     []string `json:"ignore_list"`
+}
+
 func main() {
 	closeChan := make(chan bool)
-	go getNotifications(closeChan)
+	config := getConfig()
+	go getNotifications(closeChan, config)
 	<-closeChan
+}
+
+func getDefaultNotification() Configuration {
+	token, ok := os.LookupEnv("NOTIFICATION_TOKEN")
+	if !ok {
+		log.Fatal("Errors in loading custom config and can't find NOTIFICATION_TOKEN, aborting")
+	}
+	return Configuration{GithubToken: token, RetryInterval1: 5, RetryInterval2: 10, RetryInterval3: 15}
+}
+
+func getConfig() Configuration {
+	jsonFile, err := os.Open("~/.config/github_notifications/config.json")
+	if err != nil {
+		return getDefaultNotification()
+	}
+	defer jsonFile.Close()
+	configFilesBytes, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		return getDefaultNotification()
+	}
+	config := Configuration{}
+	err = json.Unmarshal(configFilesBytes, &config)
+	if err != nil {
+		return getDefaultNotification()
+	}
+	return config
 }
 
 // Max returns the larger of x or y.
@@ -28,13 +63,14 @@ func max(x, y int) int {
 	return x
 }
 
-func getNotifications(closeChan chan bool) {
-
-	token := os.Getenv("NOTIFICATION_TOKEN")
+func getNotifications(closeChan chan bool, config Configuration) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", "https://api.github.com", nil)
-	req.Header.Add("Authorization", "token "+token)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Add("Authorization", "token "+config.GithubToken)
 	_, err = client.Do(req)
 	if err != nil {
 		log.Fatal(err)
@@ -42,7 +78,10 @@ func getNotifications(closeChan chan bool) {
 	pollTime := 60
 	etag := ""
 	req, err = http.NewRequest("GET", "https://api.github.com/notifications", nil)
-	req.Header.Add("Authorization", "token "+token)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Add("Authorization", "token "+config.GithubToken)
 
 	for {
 		req.Header.Set("If-None-Match", etag)
@@ -72,22 +111,22 @@ func getNotifications(closeChan chan bool) {
 			log.Fatal(err)
 		}
 		res := notification.NotificationResponse{}
+		issue := notification.Issue{}
 		err = json.Unmarshal(responseData, &res)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		newReq, err := http.NewRequest("GET", res[0].Subject.Url, nil)
-		newReq.Header.Add("Authorization", "token "+token)
-		newResponse, err := client.Do(newReq)
-		issue := notification.Issue{}
-
-		newIssue, err := ioutil.ReadAll(newResponse.Body)
-		err = json.Unmarshal(newIssue, &issue)
-		if err != nil {
-			log.Fatal(err)
-		}
 		for _, notification := range res {
+			newReq, err := http.NewRequest("GET", notification.Subject.Url, nil)
+			newReq.Header.Add("Authorization", "token "+config.GithubToken)
+			newResponse, err := client.Do(newReq)
+
+			newIssue, err := ioutil.ReadAll(newResponse.Body)
+			err = json.Unmarshal(newIssue, &issue)
+			if err != nil {
+				log.Fatal(err)
+			}
 			n := notiphication.Notiphication{}
 			n.AppIcon = "./assets/GitHub-Mark-32px.png"
 			n.Title = notification.Repository.Description
@@ -96,9 +135,9 @@ func getNotifications(closeChan chan bool) {
 			n.DropdownLabel = "Remind me"
 			actions := notiphication.Actions{}
 			n.Actions = actions
-			actions["5 Minutes"] = func() { go resendNotification(n, time.Minute*5) }
-			actions["10 Minutes"] = func() { go resendNotification(n, time.Minute*10) }
-			actions["15 Minutes"] = func() { go resendNotification(n, time.Minute*15) }
+			actions["5 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval1)) }
+			actions["10 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval2)) }
+			actions["15 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval3)) }
 			n.AsyncPush()
 		}
 
