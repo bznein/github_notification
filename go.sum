@@ -2,5 +2,14 @@ github.com/andybrewer/mack v0.0.0-20200226161639-15be3d47cc54 h1:uZMWs9VZiUv6J6g
 github.com/andybrewer/mack v0.0.0-20200226161639-15be3d47cc54/go.mod h1:unYm1XWSUgGRVv0MaRe3DFEGh2OEcUQ/sFSGxXjXBfI=
 github.com/bznein/notipher v0.0.0-20200903175925-7fb0b8f1ed41 h1:E2j8Kr91aTr4W4+0dHquo7azy9nmmWs1UmeG1Xqqh34=
 github.com/bznein/notipher v0.0.0-20200903175925-7fb0b8f1ed41/go.mod h1:VAaHL8sak+Mlu/1GFwXHj5qW6GAUqquPR0lph3Qzhwc=
+github.com/bznein/notipher v0.0.0-20200903180840-7befda4fd5e2 h1:wWLPttG0av+1O4NfTOz3Fyj3EKApWO6D+3juhkG+LkE=
+github.com/bznein/notipher v0.0.0-20200903180840-7befda4fd5e2/go.mod h1:VAaHL8sak+Mlu/1GFwXHj5qW6GAUqquPR0lph3Qzhwc=
+github.com/bznein/notipher v0.0.0-20200904010338-87672e050ed7 h1:oJz19irVhTKSjp+NvMqyATb2gS+usyWmfrjcek2Vd0M=
+github.com/bznein/notipher v0.0.0-20200904010338-87672e050ed7/go.mod h1:VAaHL8sak+Mlu/1GFwXHj5qW6GAUqquPR0lph3Qzhwc=
 github.com/deckarep/gosx-notifier v0.0.0-20180201035817-e127226297fb h1:6S+TKObz6+Io2c8IOkcbK4Sz7nj6RpEVU7TkvmsZZcw=
 github.com/deckarep/gosx-notifier v0.0.0-20180201035817-e127226297fb/go.mod h1:wf3nKtOnQqCp7kp9xB7hHnNlZ6m3NoiOxjrB9hFRq4Y=
+github.com/kr/pretty v0.2.1 h1:Fmg33tUaq4/8ym9TJN1x7sLJnHVwhP33CNkpYV/7rwI=
+github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
+github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
+github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
+github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=

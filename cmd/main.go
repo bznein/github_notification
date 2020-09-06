@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/bznein/notipher/pkg/notiphication"
+	"github.com/kr/pretty"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -150,7 +151,6 @@ func getNotifications(closeChan chan bool) {
 		status := response.StatusCode
 		switch status {
 		case 200:
-			break
 		case 304:
 			timeT, _ := strconv.Atoi(response.Header.Get("X-Poll-Interval"))
 			pollTime = max(pollTime, timeT)
@@ -169,16 +169,21 @@ func getNotifications(closeChan chan bool) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(res)
 
+		pretty.Println(res[0])
 		if len(res) > 0 {
 			n := notiphication.Notiphication{}
-			n.Title = res[0].Reason
+			n.AppIcon = "./assets/GitHub-Mark-32px.png"
+			n.Title = res[0].Repository.Description
+			n.Subtitle = res[0].Subject.Title
+			n.Link = res[0].Subject.Url
+			n.DropdownLabel = "Remind me"
 			actions := notiphication.Actions{}
-			actions["action1"] = func() { fmt.Println("Clicked action1") }
-			actions["action2"] = func() { fmt.Println("Clicked action2") }
+			actions["5 Minutes"] = func() { fmt.Println("Clicked action1") }
+			actions["10 Minutes"] = func() { fmt.Println("Clicked action2") }
+			actions["15 Minutes"] = func() { fmt.Println("Clicked action2") }
 			n.Actions = actions
-			n.SyncPush()
+			n.AsyncPush()
 		}
 		time.Sleep(time.Second * time.Duration(pollTime))
 	}
