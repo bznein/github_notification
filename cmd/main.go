@@ -87,11 +87,11 @@ func getNotifications(closeChan chan bool) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if len(res) > 0 {
+		for _, notification := range res {
 			n := notiphication.Notiphication{}
 			n.AppIcon = "./assets/GitHub-Mark-32px.png"
-			n.Title = res[0].Repository.Description
-			n.Subtitle = res[0].Subject.Title
+			n.Title = notification.Repository.Description
+			n.Subtitle = notification.Subject.Title
 			n.Link = issue.HtmlUrl
 			n.DropdownLabel = "Remind me"
 			actions := notiphication.Actions{}
@@ -101,6 +101,7 @@ func getNotifications(closeChan chan bool) {
 			actions["15 Minutes"] = func() { go resendNotification(n, time.Minute*15) }
 			n.AsyncPush()
 		}
+
 		time.Sleep(time.Second * time.Duration(pollTime))
 	}
 
