@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/user"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bznein/github_notification/pkg/notification"
@@ -21,6 +22,7 @@ type Configuration struct {
 	RetryInterval2 int      `json:"retry_interval_2"`
 	RetryInterval3 int      `json:"retry_interval_3"`
 	IgnoreList     []string `json:"ignore_list"`
+	LogDir         string   `json:"log_dir"`
 }
 
 func main() {
@@ -35,7 +37,11 @@ func getDefaultNotification() Configuration {
 	if !ok {
 		log.Fatal("Errors in loading custom config and can't find NOTIFICATION_TOKEN, aborting")
 	}
-	return Configuration{GithubToken: token, RetryInterval1: 5, RetryInterval2: 10, RetryInterval3: 15}
+	user, err := user.Current()
+	if err != nil {
+		log.Fatal("Tried to load default config but can't read user homedir for default logDir")
+	}
+	return Configuration{GithubToken: token, RetryInterval1: 5, RetryInterval2: 10, RetryInterval3: 15, IgnoreList: []string{}, LogDir: user.HomeDir + "/gn_logs"}
 }
 
 func getConfig() Configuration {
@@ -78,6 +84,17 @@ func contains(container []string, elem string) bool {
 }
 
 func getNotifications(closeChan chan bool, config Configuration) {
+	user, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+	f, err := os.OpenFile(strings.Replace(config.LogDir, "~", user.HomeDir, 1)+"/"+time.Now().Format("20060102"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	logger := log.New(f, "", log.LstdFlags)
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", "https://api.github.com", nil)
@@ -102,8 +119,8 @@ func getNotifications(closeChan chan bool, config Configuration) {
 		response, err := client.Do(req)
 
 		if err != nil {
-			fmt.Print(err.Error())
-			os.Exit(1)
+			logger.Printf("Error in executing request: %s", err)
+			continue
 		}
 
 		etag = response.Header.Get("ETag")
@@ -113,6 +130,7 @@ func getNotifications(closeChan chan bool, config Configuration) {
 		case 200:
 		case 304:
 			timeT, _ := strconv.Atoi(response.Header.Get("X-Poll-Interval"))
+			logger.Printf("Received 304 response\n")
 			pollTime = max(pollTime, timeT)
 			time.Sleep(time.Second * time.Duration(pollTime))
 			continue
@@ -122,17 +140,21 @@ func getNotifications(closeChan chan bool, config Configuration) {
 
 		responseData, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			log.Fatal(err)
+			logger.Printf("Error in reading response body: %s", err)
+			continue
 		}
 		res := notification.NotificationResponse{}
 		issue := notification.Issue{}
 		err = json.Unmarshal(responseData, &res)
 		if err != nil {
-			log.Fatal(err)
+			logger.Printf("Error in unmarshaling response: %s", err)
+			continue
 		}
 
+		logger.Printf("Received code 200 with the following body: %+v", res)
 		for _, notification := range res {
 			if contains(config.IgnoreList, notification.Reason) {
+				logger.Printf("Ignoring %s because is contained in ignorelist %+v", notification.Reason, config.IgnoreList)
 				continue
 			}
 			n := notiphication.Notiphication{}
@@ -144,7 +166,8 @@ func getNotifications(closeChan chan bool, config Configuration) {
 				newIssue, err := ioutil.ReadAll(newResponse.Body)
 				err = json.Unmarshal(newIssue, &issue)
 				if err != nil {
-					log.Fatal(err)
+					logger.Printf("Error in unmarshaling issue: %s", err)
+					continue
 				}
 				n.Link = issue.HtmlUrl
 			}
