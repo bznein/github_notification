@@ -25,6 +25,8 @@ type Configuration struct {
 	LogDir         string   `json:"log_dir"`
 }
 
+var logger *log.Logger
+
 func main() {
 	closeChan := make(chan bool)
 	config := getConfig()
@@ -94,7 +96,9 @@ func getNotifications(closeChan chan bool, config Configuration) {
 	}
 	defer f.Close()
 
-	logger := log.New(f, "", log.LstdFlags)
+	if logger == nil {
+		logger = log.New(f, "", log.LstdFlags)
+	}
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", "https://api.github.com", nil)
@@ -170,6 +174,7 @@ func getNotifications(closeChan chan bool, config Configuration) {
 					continue
 				}
 				n.Link = issue.HtmlUrl
+				logger.Printf("Setting notification link as %s", n.Link)
 			}
 			n.AppIcon = "./assets/GitHub-Mark-32px.png"
 			n.Title = notification.Repository.Description
@@ -177,10 +182,22 @@ func getNotifications(closeChan chan bool, config Configuration) {
 			n.DropdownLabel = "Options"
 			actions := notiphication.Actions{}
 			n.Actions = actions
-			actions["Remind in 5 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval1)) }
-			actions["Remind in 10 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval2)) }
-			actions["Remind in 15 Minutes"] = func() { go resendNotification(n, time.Minute*time.Duration(config.RetryInterval3)) }
-			actions["Ignore this type of notification"] = func() { ignoreNotification(notification.Reason) }
+			actions["Remind in 5 Minutes"] = func() {
+				logger.Printf("First remind option clicked")
+				go resendNotification(n, time.Minute*time.Duration(config.RetryInterval1))
+			}
+			actions["Remind in 10 Minutes"] = func() {
+				logger.Printf("Second remind option clicked")
+				go resendNotification(n, time.Minute*time.Duration(config.RetryInterval2))
+			}
+			actions["Remind in 15 Minutes"] = func() {
+				logger.Printf("Third remind option clicked")
+				go resendNotification(n, time.Minute*time.Duration(config.RetryInterval3))
+			}
+			actions["Ignore this type of notification"] = func() {
+				logger.Printf("Ignoring notification: %+v", notification.Reason)
+				ignoreNotification(notification.Reason)
+			}
 			n.AsyncPush()
 		}
 
@@ -219,5 +236,6 @@ func ignoreNotification(reason string) {
 
 func resendNotification(n notiphication.Notiphication, sleep time.Duration) {
 	time.Sleep(sleep)
+	logger.Printf("%s time passed, resending notification", sleep)
 	n.AsyncPush()
 }
