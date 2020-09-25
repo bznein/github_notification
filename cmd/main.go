@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -65,7 +64,30 @@ func getConfig() Configuration {
 	if err != nil {
 		return getDefaultNotification()
 	}
-	return config
+	return mergeWithDefault(config)
+}
+
+func mergeWithDefault(override Configuration) Configuration {
+	defaultC := getDefaultNotification()
+	if override.GithubToken != "" {
+		defaultC.GithubToken = override.GithubToken
+	}
+	if override.RetryInterval1 > 0 {
+		defaultC.RetryInterval1 = override.RetryInterval1
+	}
+	if override.RetryInterval2 > 0 {
+		defaultC.RetryInterval2 = override.RetryInterval2
+	}
+	if override.RetryInterval3 > 0 {
+		defaultC.RetryInterval3 = override.RetryInterval3
+	}
+	// No merging as the default is, for now, empty
+	defaultC.IgnoreList = override.IgnoreList
+
+	if override.LogDir != "" {
+		defaultC.LogDir = override.LogDir
+	}
+	return defaultC
 }
 
 // Max returns the larger of x or y.
@@ -139,7 +161,7 @@ func getNotifications(closeChan chan bool, config Configuration) {
 			time.Sleep(time.Second * time.Duration(pollTime))
 			continue
 		default:
-			fmt.Fprintf(os.Stderr, "Error code not 200 or 304: %d", status)
+			logger.Printf("ERROR: code not 200 or 304, but was %d", status)
 		}
 
 		responseData, err := ioutil.ReadAll(response.Body)
