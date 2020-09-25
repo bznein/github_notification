@@ -42,7 +42,7 @@ func getDefaultNotification() Configuration {
 	if err != nil {
 		log.Fatal("Tried to load default config but can't read user homedir for default logDir")
 	}
-	return Configuration{GithubToken: token, RetryInterval1: 5, RetryInterval2: 10, RetryInterval3: 15, IgnoreList: []string{}, LogDir: user.HomeDir + "/gn_logs"}
+	return Configuration{GithubToken: token, RetryInterval1: 5, RetryInterval2: 10, RetryInterval3: 15, IgnoreList: []string{}, LogDir: user.HomeDir + "/gn_logs/"}
 }
 
 func getConfig() Configuration {
@@ -63,6 +63,9 @@ func getConfig() Configuration {
 	err = json.Unmarshal(configFilesBytes, &config)
 	if err != nil {
 		return getDefaultNotification()
+	}
+	if strings.HasSuffix(config.LogDir, os.PathSeparator) {
+		config.LogDir += os.PathSeparator
 	}
 	return mergeWithDefault(config)
 }
@@ -112,7 +115,7 @@ func getNotifications(closeChan chan bool, config Configuration) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	f, err := os.OpenFile(strings.Replace(config.LogDir, "~", user.HomeDir, 1)+"/"+time.Now().Format("20060102"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(strings.Replace(config.LogDir, "~", user.HomeDir, 1)+time.Now().Format("20060102"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
