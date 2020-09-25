@@ -204,17 +204,20 @@ func getNotifications(closeChan chan bool, config Configuration) {
 			n.DropdownLabel = "Options"
 			actions := notiphication.Actions{}
 			n.Actions = actions
-			actions["Remind in 5 Minutes"] = func() {
+			retry1 := config.RetryInterval1
+			retry2 := config.RetryInterval2
+			retry3 := config.RetryInterval3
+			actions["Remind in "+retry1+" Minutes"] = func() {
 				logger.Printf("First remind option clicked")
-				go resendNotification(n, time.Minute*time.Duration(config.RetryInterval1))
+				go resendNotification(n, time.Minute*time.Duration(retry1))
 			}
-			actions["Remind in 10 Minutes"] = func() {
+			actions["Remind in "+retry2+" Minutes"] = func() {
 				logger.Printf("Second remind option clicked")
-				go resendNotification(n, time.Minute*time.Duration(config.RetryInterval2))
+				go resendNotification(n, time.Minute*time.Duration(retry2))
 			}
-			actions["Remind in 15 Minutes"] = func() {
+			actions["Remind in "+retry3+" Minutes"] = func() {
 				logger.Printf("Third remind option clicked")
-				go resendNotification(n, time.Minute*time.Duration(config.RetryInterval3))
+				go resendNotification(n, time.Minute*time.Duration(retry3))
 			}
 			actions["Ignore this type of notification"] = func() {
 				logger.Printf("Ignoring notification: %+v", notification.Reason)
